@@ -1,0 +1,8 @@
+剣	Sword	[Mod]a.action.is_void??a.def.攻撃力+=a.#OBJECT(剣).maxlevel
+壁	Wall	[Mod]a.def.防御力+=self.level
+兵士	Soldier	[Att]e.hp-=self.level
+旗	Flag	[Hea]a.hp+=self.level
+騎士	Knight	[Att]e.hp-=self.level[Hea]a.status.maxlevel>=1??self.level-1[Hea]a.status.maxlevel>=1??a.status.level-1
+玉座	Throne	[Mod]self.level+=1[Inc]a.object.count+self.level>=20??act=win
+宝石	Gem	[Mod]a.def.付与力+=self.level
+魂核	Soul gem	[Alw]a.losehp=-a.vit[Alw]a.#OBJECT(魂核).broken??act=lose

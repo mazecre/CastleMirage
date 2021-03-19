@@ -1,0 +1,71 @@
+/* 
+ * © 2021 200,000(創界文書)
+ * All rights reserved 200,000(創界文書)
+ * このゲームの著作権はサークル創界文書(著作者200,000)に帰属する。
+ * 第三者がこのドキュメント及び付属するファイル一覧を許可なく改造・配布・公開・無断転載することは禁止する。
+ */
+
+Program: エントリポイント
+
+[制御クラス]
+Battle: 戦闘シーケンス処理
+BattleLog: 戦闘ログの書き出し
+BattleStatusConverter: 文章と戦闘状態からステータス実値への変換
+BattleEffectInterpreter: エフェクト文章と戦闘状態からエフェクト効果への変換
+
+[計算クラス]
+FormulaCalculator: 文章をプログラム式に変換し、計算する。通常式の逆ポーランド記法への変換→(外部データからの任意変換)→計算処理を行う。
+
+[データクラス]
+CmBattleStatus: 戦闘状態のスナップショット
+CmCharacter   : キャラクター
+CmObject      : オブジェクト
+CmSkill       : スキル
+CmStatus      : ステータス
+CmEffect      : スキル/オブジェクト/ステータスエフェクト
+CmManaPool    : マナ
+
+CmCharacterBase : キャラクター基礎データ
+CmSkillBase     : スキル基礎データ
+CmObjectBase    : オブジェクト基礎データ
+CmStatusBase    : ステータス基礎データ
+
+【データ書式】
+
+[CmSkill]
+name, anotherName, type, condition, symbols, trigger, effects\n
+
+[CmObject]
+name, anotherName, effects\n
+
+[CmStatus]
+name, anotherName, effects\n
+
+[CmCharacter]
+name, owner
+elements(pass,cool,futu,past,inde,reli)
+powers(vit,int,cha)
+po
+skills(x,y, ...)
+[summonname, sumoncond]
+
+【ステータス】
+[CmBattleStatus]
+CmPartyStatus party1
+CmPartyStatus party2
+int round
+CmPartyStatus act
+CmPartyStatus opp
+
+actor
+opponent
+target
+triggerSkill
+effectSource
+
+[CmpartyStatus]
+CmCharacter chr
+List<CmCharacter> fols
+List<CmObject> objs
+int[] mana
+
