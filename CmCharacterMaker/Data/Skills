@@ -1,0 +1,63 @@
+斬撃	Slash	Action	1	v	0	[Def]a.def.攻撃力=3[Att]e.hp-=a.def.攻撃力
+双剣	Twin blade	Action	a.object.#OBJECT(剣)	v	0	[Def]a.def.攻撃力=3[Att]e.hp-=a.def.攻撃力[Att]e.hp-=a.def.攻撃力
+大打撃	Critical	Action	1	v	0	[Def]a.def.攻撃力=7[Att]e.hp-=a.def.攻撃力
+火の弾	Fire ball	Action	1	f	0	[Def]a.def.攻撃力=2+a.mana.f[Att]e.hp-=a.def.攻撃力[Alw]Undeflected[Man]all.mana+=f
+野の焼き払い	Scorch the fields	Action	a.mana.f>=1	ff	0	[Def]a.def.攻撃力=1[Att]e.hp-=a.def.攻撃力[Att]e.fol.hp-=a.def.攻撃力[Alw]Unguarded[Dis]e.stock-=1[Man]all.mana+=f
+血痕	Bloody scar	Action	a.mana.f>=1	ff	0	[Def]a.def.攻撃力=4[Att]e.hp-=a.def.攻撃力[Dis]e.mhp-=a.dealdmg[Alw]Unguarded[Man]all.mana+=ff
+重力波	Galwave	Action	a.mana.f>=2	fff	0	[Def]a.def.攻撃力=e.hp/2[Att]e.hp-=a.def.攻撃力[Man]all.mana+=ff
+連鎖雷撃	Chain lightning	Action	a.mana.f>=3	ffff	0	[Def]a.def.攻撃力=round[Att]e.hp-=a.def.攻撃力[Man]all.mana+=fff
+竈の貫き槍	Javelin of furnace	Action	a.mana.f>=4	fffff	0	[Def]a.def.攻撃力=4[Att]e.hp-=a.def.攻撃力[Dea]e.status.火傷+=a.dealdmg/2[Man]all.mana+=fff
+丸焼き	Weldan	Action	a.mana.f>=5	ffffff	0	[Def]a.def.攻撃力=e.mhp[Att]e.hp-=a.def.攻撃力[Man]all.mana+=ffff
+湧水	Spring	Action	1	w	0	[Def]a.def.回復力=3+a.mana.w[Hea]a.hp+=a.def.回復力[Man]all.mana+=w
+言葉の棘	Word of thorn	Action	a.mana.w>=1	ww	0	[Def]a.def.攻撃力=1[Att]e.skill_list-=a.def.攻撃力[Dea]e.status.閉塞+=1[Man]all.mana+=w
+波紋の盾	Overdrive sield	Action	a.mana.w>=1	ww	0	[Def]a.def.防御力=0[Mod]a.def.防御力+=e.a.def.攻撃力[Gua]a.guard+=a.def.防御力[Man]all.mana+=ww
+氷の棺	Ice coffin	Action	a.mana.f>=2	www	0	[Def]a.def.攻撃力=3[Att]e.skill_list-=a.def.攻撃力[Man]all.mana+=ww
+無垢なる鏡	Purely mirror	Reserve	a.mana.w>=3	wwww	e.action.is_attak	[Int]trigger.deflect[Man]all.mana+=www
+木霊の歌	Song of dryad	Action	a.mana.w>=4	wwwww	0	[Def]a.def.回復力=6[Hea]a.hp+=a.def.回復力[Hea]a.status-=2[Man]all.mana+=www
+心の傷跡	Trauma	Action	a.mana.w>=5	wwwwww	0	[Dis]e.skill_list-=e.skill_list.name[Man]all.mana+=wwww
+孤高の翼	Lonly wing	Reserve	1	a	a.void_attack||e.void_attack	[Int]all.action.is_void=counter/all.action.is_void=break[Def]a.def.攻撃力=1+a.mana.a[Gua]a.guard+=object[Atk]e.hp-=a.def.攻撃力[Man]all.mana+=a
+常盤の風	Evergreen wind	Action	a.mana.a>=1	aa	0	[Def]a.def.運命力=1d6[Inc]round+=a.def.運命力[Man]all.mana+=a
+塵に帰れ	Turn to dust	Reserve	a.mana.a>=1	aa	0	[Dis]e.object-=1[Man]all.mana+=aa
+大嵐	Tempest	Reserve	a.mana.a>=2	aaa	e.stock.triggered	[Int]trigger=counter/trigger=break[Man]all.mana+=aa
+詠唱回逆	Counter spell	Reserve	a.mana.a>=3	aaaa	e.action.used	[Int]trigger=counter/trigger=break[Man]all.mana+=aaa
+暇潰し	Killing time	Action	a.mana.a>=4	aaaaa	0	[Def]a.def.付与力=round[Dea]all.status.寿命+=a.def.付与力[Man]all.mana+=aaa
+倍速	Double action	Action	a.mana.a>=5	aaaaaa	0	[Inc]a.action+=1[Man]all.mana+=aaaa
+魔剣招来	Swordbringer	Action	1	s	0	[Def]a.def.創造力=1+a.mana.s[Bui]a.object.剣+=1[Man]all.mana+=s
+空想空位	Imaginary interregnum	Reserve	a.mana.s>=1	ss	a.object.broken	[Bui]a.object.旗+=1[Man]all.mana+=s
+城砦	Wall	Action	a.mana.s>=1	ss	0	[Def]a.def.創造力=1[Bui]a.object.壁+=1[Man]all.mana+=ss
+無心の戦士	Heartless soldier	Action	a.mana.s>=2	sss	0	[Def]a.def.創造力=3[Bui]a.object.兵士+=1[Man]all.mana+=ss
+占領	Occupation	Action	a.mana.s>=3	ssss	0	[Def]a.def.創造力=1/a.def.拡散=a.objec.count[Bui]a.object.旗+=拡散[Man]all.mana+=sss
+忠義の騎士	Loyal knight	Action	a.mana.s>=4	sssss	0	[Def]a.def.創造力=5[Bui]a.object.騎士+=1[Man]all.mana+=sss
+千年の王国	Ancient throne	Action	a.mana.s>=5	ssssss	0	[Def]a.def.創造力=1[Bui]a.object.玉座+=1[Man]all.mana+=ssss
+増幅	Enhance	Action	1	l	0	[Def]a.def.付与力=1+a.mana.l[Dea]a.status.強化+=a.def.付与力[Man]all.mana+=l
+閃光	Flash	Action	a.mana.l>=1	ll	0	[Dea]a.status.麻痺+=1/a.fol.status.麻痺+=1[Man]all.mana+=l
+銀の弾丸	Silver bullet	Action	a.mana.l>=1	ll	0	[Def]a.def.攻撃力=2+e.mana.d[Mod]a.a.def.攻撃力+=a.status.強化[Att]e.hp-=a.def.攻撃力[Man]all.mana+=ll
+天界の祝福	Astral bressing	Reserve	a.mana.l>=2	lll	a.hp<=0	[Int]a.hp=1[Man]all.mana+=ll
+天秤	Balance	Action	a.mana.l>=3	llll	0	[Inc]all.mana=balance[Man]all.mana+=lll
+破壊光線	Laser blast	Action	a.mana.l>=4	lllll	0	[Def]a.def.攻撃力=5/a.def.拡散=5[Def]a.guard+=object[Att]e.object.count==0??e.hp-a.def.攻撃力[Dis]e.object.count!=0??e.object.拡散.level-=1[Man]all.mana+=lll
+レベルアップ	Level up	Action	a.mana.l>=5	llllll	0	[Hea]a.vit+=2/a.int+=2/a.cha+=2[Man]all.mana+=llll
+万色の魔力	Rainbow mana	Action	1	d	0	[Man]a.mana+=fwas/all.mana+=d
+悪夢の夜	Nightmare's midnight	Action	a.mana.d>=1	dd	0	[Def]a.def.創造力=1[Bui]a.object.宝石+=1[Man]all.mana+=d
+吸血鬼	Vampire	Action	a.mana.d>=1	dd	0	[Def]a.def.攻撃力=2+a.mana.d[Att]e.hp-=a.def.攻撃力[Hea]a.hp+=a.dealdmg[Man]all.mana+=dd
+冥府の瘴気	Abyssal miasma	Action	a.mana.d>=2	ddd	0	[Def]a.def.付与力=2[Dea]e.status.猛毒+=a.def.付与力[Man]all.mana+=dd
+闇の支配	Domination	Action	a.mana.d>=3	dddd	0	[Dis]a.object+=e.object.1[Man]all.mana+=ddd
+魔力喰らい	Mana eater	Reserve	a.mana.d>=4	ddddd	a.action.used	[Int]trigger.manadeflect/trigger.manareverse[Man]all.mana+=ddd
+塗りつぶされる世界	The end	Action	a.mana.d>=5	dddddd	0	[Def]a.def.攻撃力=a.hp/2[Att]a.hp-=a.def.攻撃力[Dea]e.status.死亡+=1[Man]all.mana+=dddd
+打ち壊し	Break	Action	a.mana.f>=4	vfffff	0	[Def]a.def.攻撃力=9[Att]e.hp-=a.def.攻撃力[Dis]a.dealdmg>=1??e.action=break[Man]a.mana-=ffff
+毒蛇の牙	Vipor's vite	Action	a.mana.w>=4	vwwwww	0	[Def]a.def.攻撃力=3[Att]e.hp-=a.def.攻撃力[Dea]e.status.猛毒+=1/e.status.麻痺+=1/e.status.閉塞+=1[Man]a.mana-=wwww
+無頼斬	Blind slash	Action	a.mana.a>=4	vaaaaa	0	[Def]a.def.攻撃力=5bd6[Att]e.hp-=a.def.攻撃力[Man]a.mana-=aaaa
+甲鱗剣	Scale waloon	Action	a.mana.s>=4	vsssss	0	[Def]a.def.攻撃力=7/a.def.防御力=6[Gua]a.guard+=a.def.防御力[Att]e.hp-=a.def.攻撃力[Man]a.mana-=dddd
+精神剣	Mind blade	Action	a.mana.l>=4	vlllll	0	[Def]a.def.攻撃力=1[Mod]a.def.攻撃力+=e.exhaust.count[Att]e.hp-=a.def.攻撃力[Man]a.mana-=llll
+夜の刃	Night edge	Action	a.mana.d>=4	vddddd	0	[Def]a.def.攻撃力=4[Att]e.hp-=a.def.攻撃力/e.skill_list-=a.def.攻撃力[Man]a.mana-=dddd
+熱砂の嵐	Schoching sand storm	Preserve	a.mana.f>=2&&a.mana.a>=2	fffaaa	actionphase	[Alw]healscale=-1
+鋼体	Iron body	Preserve	a.mana.f>=2&&a.mana.s>=2	fffsss	actionphase	[Def]a.def.防御力=2[Gua]a.guard+=a.def.防御力[Hea]a.status>=1??a.status.剛力=a.status.1
+核	Core	Action	a.mana.f>=2&&a.mana.l>=2	ffflll	0	[Ded]a.def.攻撃力=e.vit[Att]a.status.詠唱>=3??e.hp-=a.def.攻撃力[Dea]a.status.詠唱+=1[Man]a.mana+=ffll
+闇の炎に抱かれて消えろ	Judas	Preserve	a.mana.f>=2&&a.mana.d>=2	fffddd	actionphase	[Int]a.status.詠唱+=1[Inc]a.status.詠唱>=3??e.hp=0
+霧の外套	Cloak of myst	Preserve	a.mana.w>=2&&a.mana.a>=2	wwwaaa	a.dealt.dmg	[Int]trigger.dmg/=2
+螺旋の枷	Shackles of spiral	Action	a.mana.w>=2&&a.mana.s>=2	wwwsss	0	[Def]a.def.付与力=4[Dea]e.status.衰弱+=a.def.付与力[Man]a.mana+=wwss
+機知の戦い	Battle of wit	Preserve	a.mana.w>=2&&a.mana.l>=2	wwwlll	actionphase	[Alw]mindattack
+不浄不滅	Immortal	Action	a.mana.w>=2&&a.mana.d>=2	wwwddd	0	[Def]a.def.創造力=1[Bui]a.object.魂核+=1[Man]a.mana+=wwdd
+破壊の化身	Avatar of destraction	Preserve	a.mana.a>=2&&a.mana.l>=2	aaalll	actionphase	[Dis]e.object.count-=a.dealdmg
+獣の咆哮	Beast's hawling	Reserve	a.mana.a>=2&&a.mana.d>=2	aaaddd	e.action.is_nonattack	[Int]trigger=counter/trigger=break[Dea]e.status.麻痺+=1[Man]a.mana+=aadd
+遙かなる地平	Eternal horizon	Preserve	a.mana.s>=2&&a.mana.l>=2	ssslll	actionphase	[Alw]reserve=untriggered/preserve=untriggered[Man]a.mana-=fwasld
+創造の化身	Avatar of creation	Preserve	a.mana.s>=2&&a.mana.d>=2	sssddd	actionphase	[Mod]a.def.創造力+=1

@@ -1,0 +1,10 @@
+猛毒	Poison	[Inc]a.hp-self.level
+火傷	Burn	[Dis]self-1[Inc]a.hp-self.level
+麻痺	Palalyze	[Alw]S001
+閉塞	Blockage	[Dis]self-1[Alw]S002
+寿命	Lifespan	[Inc]self.count>=a.vit??a.hp-a.hp/self=0
+剛力	Muscle	[Mod]a.def.攻撃力+self.level
+衰弱	Weakness	[Mod]a.def.攻撃力-=self.level
+強化	Reinforce	[Mod]a.def.攻撃力+=self.level/a.def.防御力+=self.level/a.def.付与力+=self.level
+詠唱	Chant	[Alw]S003
+死亡	Death	[Inc]a.hp-a.hp/self=0
