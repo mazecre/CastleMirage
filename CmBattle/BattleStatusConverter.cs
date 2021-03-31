@@ -27,7 +27,7 @@ namespace Zook {
 		CharacterSkillList,
 		CharacterActionSlot,
 		CharacterStockSlot,
-		CharacterExaustZone,
+		CharacterExhaustZone,
 		CharacterStatusAll,
 		CharacterStatusCount,
 		CharacterStatusDetail,
@@ -41,6 +41,8 @@ namespace Zook {
 		SkillBroken,
 		SkillType,
 		SkillSymbols,
+		SkillVoid,
+		SkillNonvoid,
 		CharacterMana,
 		CharacterManaLimit,
 		ManaFire,
@@ -59,6 +61,7 @@ namespace Zook {
 		ManaLimitVoid,
 		Definition,
 		Distortion,
+		TriggerSkill,
 		Dice
 	}
 	
@@ -77,7 +80,8 @@ namespace Zook {
 		SkillList,
 		ActionSlot,
 		StockSlot,
-		ExaustZone
+		ExhaustZone,
+		Trigger
 	}
 	
 	public class BsConvert {
@@ -91,6 +95,7 @@ namespace Zook {
 	public class BattleStatusConverter {
 		
 		private FormulaCalculator fc;
+		private BattleLog bl;
 		private Random rand = new Random();
 		
 		private CmSkillList skillList;
@@ -98,6 +103,10 @@ namespace Zook {
 		private CmStatusList statusList;
 
 		public BattleStatusConverter() {
+		}
+		
+		public void SetBattleLog(BattleLog bl) {
+			this.bl = bl;
 		}
 		
 		public void SetFormulaCalculator(FormulaCalculator fc) {
@@ -110,6 +119,9 @@ namespace Zook {
 			this.statusList = statusList;
 		}
 
+		/**************************************************************
+		 * 存在チェック
+		 **************************************************************/
 		public string ExistCheck(CmBattleStatus bStatus, string rpnFormula) {
 			string[] strs = rpnFormula.Split(' ');
 			for (int i = 0; i < strs.Length-1; i++) {
@@ -210,7 +222,9 @@ namespace Zook {
 		 **************************************************************/
 		public BsConvert GetBsConvertType(CmBattleStatus bStatus, string valueString) {
 			string str = valueString;
-			if (str.StartsWith("all.fol.")) {
+			if (str.StartsWith("trigger.")) {
+				return GetSkillConvertType(BsTargetType.None, BsSkillLayer.Trigger, str.Substring("trigger.".Length));
+			} else if (str.StartsWith("all.fol.")) {
 				return GetPsConvertType(BsTargetType.AllFollowers, str.Substring("all.fol.".Length));
 			} else if (str.StartsWith("a.fol.")) {
 				return GetPsConvertType(BsTargetType.ActorFollowers, str.Substring("a.fol.".Length));
@@ -225,6 +239,11 @@ namespace Zook {
 			} else if (str.StartsWith("round")) {
 				BsConvert bsConvert = new BsConvert();
 				bsConvert.valueType = BsValueType.Round;
+				bsConvert.targetType = BsTargetType.None;
+				return bsConvert;
+			} else if (str.StartsWith("trigger")) {
+				BsConvert bsConvert = new BsConvert();
+				bsConvert.valueType = BsValueType.TriggerSkill;
 				bsConvert.targetType = BsTargetType.None;
 				return bsConvert;
 			} else {
@@ -248,7 +267,7 @@ namespace Zook {
 			} else if (str.StartsWith("stock.")) {
 				return GetSkillConvertType(targetType, BsSkillLayer.StockSlot, str.Substring("stock.".Length));
 			} else if (str.StartsWith("exhaust.")) {
-				return GetSkillConvertType(targetType, BsSkillLayer.ExaustZone, str.Substring("exhaust.".Length));
+				return GetSkillConvertType(targetType, BsSkillLayer.ExhaustZone, str.Substring("exhaust.".Length));
 			} else if (str.StartsWith("mana_limit.")) {
 				return GetManaLimitConvertType(targetType, str.Substring("mana_limit.".Length));
 			} else if (str.StartsWith("mana.")) {
@@ -365,7 +384,7 @@ namespace Zook {
 				return bsConvert;
 			} else if (str.StartsWith("exhaust")) {
 				BsConvert bsConvert = new BsConvert();
-				bsConvert.valueType = BsValueType.CharacterExaustZone;
+				bsConvert.valueType = BsValueType.CharacterExhaustZone;
 				bsConvert.targetType = targetType;
 				return bsConvert;
 			} else if (str.StartsWith("mana")) {
@@ -472,6 +491,20 @@ namespace Zook {
 				bsConvert.skillLayer = skillLayer;
 				bsConvert.level = str;
 				return bsConvert;
+			} else if (valueString.Equals("is_void")) {
+				BsConvert bsConvert = new BsConvert();
+				bsConvert.valueType = BsValueType.SkillVoid;
+				bsConvert.targetType = targetType;
+				bsConvert.skillLayer = skillLayer;
+				bsConvert.level = str;
+				return bsConvert;
+			} else if (valueString.Equals("is_nonvoid")) {
+				BsConvert bsConvert = new BsConvert();
+				bsConvert.valueType = BsValueType.SkillNonvoid;
+				bsConvert.targetType = targetType;
+				bsConvert.skillLayer = skillLayer;
+				bsConvert.level = str;
+				return bsConvert;
 			}
 			return null;
 		}
@@ -566,6 +599,9 @@ namespace Zook {
 
 		public string ConvertValue(CmBattleStatus bStatus, string valueString) {
 			BsConvert bsConvert = GetBsConvertType(bStatus, valueString);
+			if (bsConvert == null) {
+				return valueString;
+			}
 			switch (bsConvert.valueType) {
 			case BsValueType.None:
 				break;
@@ -703,7 +739,7 @@ namespace Zook {
 					return bStatus.e.chr.stockSlots.Count.ToString();
 				}
 				break;
-			case BsValueType.CharacterExaustZone:
+			case BsValueType.CharacterExhaustZone:
 				if (bsConvert.targetType == BsTargetType.Actor) {
 					return bStatus.a.chr.exhaustZone.Count.ToString();
 				} else if (bsConvert.targetType == BsTargetType.Opponent) {
@@ -788,13 +824,73 @@ namespace Zook {
 				}
 				break;
 			case BsValueType.SkillCount:
+				switch (bsConvert.skillLayer) {
+				case BsSkillLayer.SkillList:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.thoughtZone.Count.ToString();
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.thoughtZone.Count.ToString();
+					}
+					break;
+				case BsSkillLayer.ActionSlot:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.actionSlots.Count.ToString();
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.actionSlots.Count.ToString();
+					}
+					break;
+				case BsSkillLayer.StockSlot:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.stockSlots.Count.ToString();
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.stockSlots.Count.ToString();
+					}
+					break;
+				case BsSkillLayer.ExhaustZone:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.exhaustZone.Count.ToString();
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.exhaustZone.Count.ToString();
+					}
+					break;
+				case BsSkillLayer.Trigger:
+					return "1";
+				default:
+					break;
+				}
 				break;
 			case BsValueType.SkillBroken:
+				switch (bsConvert.skillLayer) {
+				case BsSkillLayer.SkillList:
+					return "0";
+				case BsSkillLayer.ActionSlot:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.actionSlots[0].broken ? "1" : "0";
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.actionSlots[0].broken ? "1" : "0";
+					}
+					break;
+				case BsSkillLayer.StockSlot:
+					if (bsConvert.targetType == BsTargetType.Actor) {
+						return bStatus.a.chr.stockSlots[0].broken ? "1" : "0";
+					} else if (bsConvert.targetType == BsTargetType.Opponent) {
+						return bStatus.e.chr.stockSlots[0].broken ? "1" : "0";
+					}
+					break;
+				case BsSkillLayer.ExhaustZone:
+					return "1";
+				case BsSkillLayer.Trigger:
+					return bStatus.triggerSkill.broken ? "1" : "0";
+				default:
+					break;
+				}
 				break;
 			case BsValueType.SkillType:
 				break;
 			case BsValueType.SkillSymbols:
 				break;
+			case BsValueType.TriggerSkill:
+				return "1";
 			case BsValueType.CharacterMana:
 				break;
 			case BsValueType.ManaFire:
@@ -942,10 +1038,24 @@ namespace Zook {
 		
 		public List<CmPartyStatus> GetTargetPartyStatus(CmBattleStatus bStatus, BsTargetType targetType) {
 			List<CmPartyStatus> cmPartyList = new List<CmPartyStatus>();
+			bool reflect = CheckTimingDistortion(bStatus, "reflect", false);
+			bool nonreflect = CheckTimingDistortion(bStatus, "nonreflect", false);
 			if (targetType == BsTargetType.Actor || targetType == BsTargetType.ActorFollowers) {
-				cmPartyList.Add(bStatus.a);
+				if (reflect && !nonreflect) {
+					cmPartyList.Add(bStatus.e);
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+				} else {
+					cmPartyList.Add(bStatus.a);
+				}
 			} else if (targetType == BsTargetType.Opponent || targetType == BsTargetType.OpponentFollowers) {
-				cmPartyList.Add(bStatus.e);
+				if (reflect && !nonreflect) {
+					cmPartyList.Add(bStatus.a);
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+				} else {
+					cmPartyList.Add(bStatus.e);
+				}
 			} else if (targetType == BsTargetType.All || targetType == BsTargetType.AllFollowers) {
 				cmPartyList.Add(bStatus.a);
 				cmPartyList.Add(bStatus.e);
@@ -955,20 +1065,66 @@ namespace Zook {
 		
 		public List<CmCharacter> GetTargetCharacters(CmBattleStatus bStatus, BsTargetType targetType) {
 			List<CmCharacter> cmCharacterList = new List<CmCharacter>();
+			bool reflect = CheckTimingDistortion(bStatus, "reflect", false);
+			bool nonreflect = CheckTimingDistortion(bStatus, "nonreflect", false);
+			bool block = CheckTimingDistortion(bStatus, "block", true);
 			if (targetType == BsTargetType.Actor) {
-				cmCharacterList.Add(bStatus.a.chr);
+				if (reflect && !nonreflect) {
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+					if (block) {
+						distortion = bStatus.e.GetDistortion("block");
+						bl.Log(String.Format("[{0}]: {1}は効果の対象から外された", distortion.factor, bStatus.e.chr.Name));
+					} else {
+						cmCharacterList.Add(bStatus.e.chr);
+					}
+				} else {
+					cmCharacterList.Add(bStatus.a.chr);
+				}
 			} else if (targetType == BsTargetType.Opponent) {
-				cmCharacterList.Add(bStatus.e.chr);
+				if (reflect && !nonreflect) {
+					cmCharacterList.Add(bStatus.a.chr);
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+				} else {
+					if (block) {
+						Distortion distortion = bStatus.e.GetDistortion("block");
+						bl.Log(String.Format("[{0}]: {1}は効果の対象から外された", distortion.factor, bStatus.e.chr.Name));
+					} else {
+						cmCharacterList.Add(bStatus.e.chr);
+					}
+				}
 			} else if (targetType == BsTargetType.All) {
 				cmCharacterList.Add(bStatus.a.chr);
-				cmCharacterList.Add(bStatus.e.chr);
+				if (block) {
+					Distortion distortion = bStatus.e.GetDistortion("block");
+					bl.Log(String.Format("[{0}]: {1}は効果の対象から外された", distortion.factor, bStatus.e.chr.Name));
+				} else {
+					cmCharacterList.Add(bStatus.e.chr);
+				}
 			} else if (targetType == BsTargetType.ActorFollowers) {
-				for (int i = 0; i < bStatus.a.fols.Count; i++) {
-					cmCharacterList.Add(bStatus.a.fols[i]);
+				if (reflect && !nonreflect) {
+					for (int i = 0; i < bStatus.e.fols.Count; i++) {
+						cmCharacterList.Add(bStatus.e.fols[i]);
+					}
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+				} else {
+					for (int i = 0; i < bStatus.a.fols.Count; i++) {
+						cmCharacterList.Add(bStatus.a.fols[i]);
+					}
 				}
 			} else if (targetType == BsTargetType.OpponentFollowers) {
-				for (int i = 0; i < bStatus.e.fols.Count; i++) {
-					cmCharacterList.Add(bStatus.e.fols[i]);
+				if (reflect && !nonreflect) {
+					for (int i = 0; i < bStatus.a.fols.Count; i++) {
+						cmCharacterList.Add(bStatus.a.fols[i]);
+					}
+					Distortion distortion = bStatus.a.GetDistortion("reflect");
+					bl.Log(String.Format("[{0}]: 効果の対象が変更された", distortion.factor));
+				} else {
+					for (int i = 0; i < bStatus.e.fols.Count; i++) {
+						cmCharacterList.Add(bStatus.e.fols[i]);
+					}
 				}
 			} else if (targetType == BsTargetType.AllFollowers) {
 				for (int i = 0; i < bStatus.a.fols.Count; i++) {
@@ -979,6 +1135,56 @@ namespace Zook {
 				}
 			}
 			return cmCharacterList;
+		}
+
+		public bool CheckTimingDistortion(CmBattleStatus bStatus, string distortionRule, bool enemy) {
+			string distortionProperty = "";
+			switch (bStatus.effectTiming) {
+			case EffectTiming.Define:
+				distortionProperty = "def";
+				break;
+			case EffectTiming.Modify:
+				distortionProperty = "mod";
+				break;
+			case EffectTiming.Guard:
+				distortionProperty = "gua";
+				break;
+			case EffectTiming.Attack:
+				distortionProperty = "att";
+				break;
+			case EffectTiming.Disturb:
+				distortionProperty = "dis";
+				break;
+			case EffectTiming.Deal:
+				distortionProperty = "dea";
+				break;
+			case EffectTiming.Heal:
+				distortionProperty = "hea";
+				break;
+			case EffectTiming.Build:
+				distortionProperty = "bui";
+				break;
+			case EffectTiming.Incident:
+				distortionProperty = "inc";
+				break;
+			case EffectTiming.Mana:
+				distortionProperty = "man";
+				break;
+			case EffectTiming.Interrupt:
+				distortionProperty = "int";
+				break;
+			case EffectTiming.Always:
+				distortionProperty = "alw";
+				break;
+			case EffectTiming.None:
+			default:
+				return false;
+			}
+			if (enemy) {
+				return bStatus.e.HasDistortion(distortionRule, distortionProperty);
+			} else {
+				return bStatus.a.HasDistortion(distortionRule, distortionProperty);
+			}
 		}
 		
 		public int Calculate(string formula) {
@@ -1021,5 +1227,45 @@ namespace Zook {
 			mana.d = formula.Length - formula.Replace("d", "").Length;
 			return mana;
 		}
+
+		public bool SepatateCondition(CmBattleStatus bStatus, ref string formula) {
+			int index = formula.IndexOf("??");
+			if (index < 0) {
+				return true;
+			}
+			string condition = formula.Substring(0, index);
+			formula = formula.Substring(index+1);
+			return CondCheck(bStatus, condition);
+		}
+
+		public bool TriggerCondCheck(CmBattleStatus bStatus, string triggerKey, string condition) {
+			string rpnFormula = "";
+			int value = 0;
+			fc.ToReversePolishNotation(condition, out rpnFormula);
+			rpnFormula = ConvertTriggerKey(triggerKey, rpnFormula);
+			rpnFormula = Convert(bStatus, rpnFormula);
+			rpnFormula = fc.ConvertWords(rpnFormula);
+			fc.Calculate(rpnFormula, out value);
+			//true or falseを1 or 0で返す。
+			return (value == 1);
+		}
+
+		private string ConvertTriggerKey(string triggerKey, string rpnFormula) {
+			string[] strs = rpnFormula.Split(' ');
+			for (int i = 0; i < strs.Length; i++) {
+				//System.Windows.Forms.MessageBox.Show(strs[i]);
+				if (strs[i].Equals(triggerKey)) {
+					strs[i] = "1";
+				}
+			}
+			string convertedFormula = strs[0];
+			for (int i = 1; i < strs.Length; i++) {
+				convertedFormula += " " + strs[i];
+			}
+			return convertedFormula;
+
+		}
+
+
 	}
 }

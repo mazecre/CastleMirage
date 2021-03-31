@@ -1,8 +1,8 @@
 猛毒	Poison	[Inc]a.hp-=a.status.猛毒
 火傷	Burn	[Dis]a.status.火傷-=1[Inc]a.hp-=a.status.火傷
 麻痺	Palalyze	[Alw]a.dis.prepare=skip
-閉塞	Blockage	[Dis]a.status.閉塞-=1[Alw]S002
-寿命	Lifespan	[Inc]a.status.寿命.count>=a.vit??a.hp-=a.hp[Inc]a.status.寿命=0
+閉塞	Blockage	[Dis]a.status.閉塞-=1[Inc]a.dis.block=man
+寿命	Lifespan	[Inc]a.status.寿命>=a.vit??a.hp-=a.hp[Inc]a.status.寿命=0
 剛力	Muscle	[Mod]a.def.攻撃力+=a.status.剛力
 衰弱	Weakness	[Mod]a.def.攻撃力-=a.status.衰弱
 強化	Reinforce	[Mod]a.def.攻撃力+=a.status.強化[Mod]a.def.防御力+=a.status.強化[Mod]a.def.付与力+=a.status.強化

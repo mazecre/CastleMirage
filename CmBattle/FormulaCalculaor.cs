@@ -627,7 +627,9 @@ namespace Zook {
 					} else {
 						//特殊な値→数値の変換が終わってない状況
 						value = 0;
-						return false;
+						//return false;
+						FormulaItem fi = new FormulaItem(0);
+						fis.Push(fi);
 					}
 				}
 			}

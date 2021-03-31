@@ -19,8 +19,6 @@ namespace Zook {
 		CmStatusList statusList = new CmStatusList();
 		CmCharacterList characterList = new CmCharacterList();
 		
-		//CmBattleStatus p1Status = new CmBattleStatus();
-		//CmBattleStatus p2Status = new CmBattleStatus();
 		CmBattleStatus bStatus = new CmBattleStatus();
 		
 		string character1;
@@ -31,6 +29,7 @@ namespace Zook {
 			objectList.Load();
 			statusList.Load();
 			characterList.Load(skillList);
+			bsc.SetBattleLog(bl);
 			bsc.SetFormulaCalculator(fc);
 			bsc.SetDataList(skillList, objectList, statusList);
 			bei.SetBattleLog(bl);
@@ -47,8 +46,9 @@ namespace Zook {
 		public void BattleSequence() {
 			bl.CreateLogFile("Out/Test.txt");
 			BattleInit();
-			for (int i = 1; i <= 1000; ++i) {
-				if (Round(i)) {
+			while (bStatus.round <= 1000) {
+				bStatus.round += 1;
+				if (Round(bStatus.round)) {
 					break;
 				}
 			}
@@ -60,24 +60,19 @@ namespace Zook {
 			CmCharacter c2 = characterList.GetCharacter(character2);
 			CmPartyStatus p1 = new CmPartyStatus();
 			CmPartyStatus p2 = new CmPartyStatus();
-			//CmRound round = new CmRound();
 			p1.chr = c1;
 			p2.chr = c2;
 			bStatus.p1 = p1;
 			bStatus.p2 = p2;
-			//p1Status.act = p1;
-			//p1Status.opp = p2;
-			//p1Status.round = round;
-			//p2Status.act = p2;
-			//p2Status.opp = p1;
-			//p2Status.round = round;
 		}
 		
 		private bool Round(int round) {
 			bl.Log(String.Format("Round: {0}", round));
+			PassiveStep();
 			SummonStep();
 			PrepareStep();
 			ChangeStep();
+			PassiveStep();
 			ActionStep();
 			ManaStep();
 			if (EndStep()) {
@@ -86,7 +81,16 @@ namespace Zook {
 			return false;
 		}
 
+		private void PassiveStep() {
+			//Always効果の解決(基本Distortionのみ)
+			bStatus.SwitchP1Action();
+			ActionEffect(EffectTiming.Always);
+			bStatus.SwitchP2Action();
+			ActionEffect(EffectTiming.Always);
+		}
+
 		private void SummonStep() {
+
 			//召喚チェック
 			//キャラクターが倒れていれば交代する
 		}
@@ -106,28 +110,49 @@ namespace Zook {
 			for (int i = 0; i < character.actionSlots.Count; i++) {
 				if (bStatus.a.HasDistortion("prepare", "skip")) {
 					character.actionSlots[i] = null;
+					Distortion distortion = bStatus.a.GetDistortion("prepare");
+					bl.Log(String.Format("{0}[{1}]: 準備をスキップした", character.Name, distortion.factor));
 					bStatus.a.RemoveDistortion("prepare", "skip");
-					bl.Log("Skip");
 				} else {
-					for (int j = 0; j < character.thoughtZone.Count; j++) {
+					int j = 0;
+					while (j < character.thoughtZone.Count) {
 						if (bsc.CondCheck(bStatus, character.thoughtZone[j].baseSkill.useCondition)) {
 							if (character.thoughtZone[j].baseSkill.type == SkillType.Action) {
+								if (character.actionSlots[i] != null) {
+									bl.Log(String.Format("{0}: {1}を破棄した(アクション{2})", character.Name, character.actionSlots[i].Name, i+1));
+									character.exhaustZone.Add(character.actionSlots[i]);
+									character.actionSlots[i] = null;
+								}
 								character.actionSlots[i] = character.thoughtZone[j];
 								character.thoughtZone.RemoveAt(j);
 								actionSelected = true;
+								bl.Log(String.Format("{0}: {1}を準備した(アクション{2})", character.Name, character.actionSlots[i].Name, i+1));
 								break;
 							} else if (character.thoughtZone[j].baseSkill.type == SkillType.Reserve ||
 								       character.thoughtZone[j].baseSkill.type == SkillType.Preserve) {
 								SelectNextStock(bStatus, ref h);
+								if (character.stockSlots[h] != null) {
+									bl.Log(String.Format("{0}: {1}を破棄した(ストック{2})", character.Name, character.stockSlots[h].Name, h+1));
+									character.exhaustZone.Add(character.stockSlots[h]);
+									character.stockSlots[h] = null;
+								}
 								character.stockSlots[h] = character.thoughtZone[j];
 								character.thoughtZone.RemoveAt(j);
+								bl.Log(String.Format("{0}: {1}を準備した(ストック{2})", character.Name, character.stockSlots[h].Name, h+1));
+							} else {
+								bl.Log(String.Format("{0}: {1}は準備できない", character.Name, character.thoughtZone[j].Name));
+								j++;
 							}
+						} else {
+							bl.Log(String.Format("{0}: {1}はまだ準備できない", character.Name, character.thoughtZone[j].Name));
+							j++;
 						}
 					}
 				}
 			}
 			if (actionSelected == false) {
 				character.exhausted = true;
+				bl.Log(String.Format("{0}: 準備できるアクションがない", character.Name));
 			}
 		}
 		
@@ -182,11 +207,21 @@ namespace Zook {
 				EffectTiming.Build,
 				EffectTiming.Incident,
 			};
+			
+			bStatus.SwitchP1Action();
+			ActionUseCheck();
+			bStatus.SwitchP2Action();
+			ActionUseCheck();
 			for (int i = 0; i < timings.Length; i++) {
 				bStatus.SwitchP1Action();
 				ActionEffect(timings[i]);
 				bStatus.SwitchP2Action();
 				ActionEffect(timings[i]);
+
+				bStatus.SwitchP1Action();
+				TriggerCheck("aftereffect");
+				bStatus.SwitchP2Action();
+				TriggerCheck("aftereffect");
 			}
 			bStatus.SwitchP1Action();
 			SkillBreak();
@@ -194,10 +229,88 @@ namespace Zook {
 			SkillBreak();
 			DeadCheck();
 		}
+
+		private void ActionUseCheck() {
+			TriggerCheck("actionphase");
+			for (int i = 0; i < bStatus.a.chr.actionSlots.Count; i++) {
+				CmSkill action = bStatus.a.chr.actionSlots[i];
+				if (action != null) {
+					bStatus.triggerSkill = action;
+					TriggerCheck("a.action.used");
+					SwitchTriggerCheck("e.action.used");
+					action.used = true;
+					bool isAttack = false;
+					bool isVoid = action.baseSkill.symbols.Contains("v");
+					foreach (CmEffect effect in action.Effects) {
+						if (effect.timing == EffectTiming.Attack) {
+							isAttack = true;
+						}
+					}
+					if (isAttack) {
+						TriggerCheck("a.attack");
+						SwitchTriggerCheck("e.attack");
+					} else {
+						TriggerCheck("a.nonattack");
+						SwitchTriggerCheck("e.nonattack");
+					}
+					if (isVoid) {
+						TriggerCheck("a.void_skill");
+						SwitchTriggerCheck("e.void_skill");
+					} else {
+						TriggerCheck("a.nonvoid_skill");
+						SwitchTriggerCheck("e.nonvoid_skill");
+					}
+				}
+			}
+			bStatus.triggerSkill = null;
+		}
+
+		private void TriggerCheck(string triggerKey) {
+			bStatus.effectTiming = EffectTiming.Interrupt;
+			foreach (CmSkill stock in bStatus.a.chr.stockSlots) {
+				if (stock == null) {
+					continue;
+				}
+				bStatus.effectSourceType = EffectSourceType.Skill;
+				bStatus.effectSourceName = stock.Name;
+				foreach (CmEffect effect in stock.Effects) {
+					if (effect.timing == bStatus.effectTiming &&
+						bsc.TriggerCondCheck(bStatus, triggerKey, stock.baseSkill.trigger) &&
+						stock.used == false) {
+						bl.Log(String.Format("{0}[{1}]: トリガーを満たし起動した", bStatus.a.chr.Name, bStatus.effectSourceName));
+						stock.used = true;
+						CmSkill triggerSkill = bStatus.triggerSkill;
+						bStatus.triggerSkill = stock;
+						TriggerCheck("a.stock.triggered");
+						SwitchTriggerCheck("e.stock.triggered");
+						bStatus.effectSourceType = EffectSourceType.Skill;
+						bStatus.effectSourceName = stock.Name;
+						bStatus.triggerSkill = triggerSkill;
+						if (!stock.broken) {
+							bei.ExecuteEffects(bStatus, effect.formula);
+						}
+					}
+				}
+			}
+		}
+
+		private void SwitchTriggerCheck(string trigger) {
+			if (bStatus.p1 == bStatus.a) {
+				bStatus.SwitchP2Action();
+				TriggerCheck(trigger);
+				bStatus.SwitchP1Action();
+			} else {
+				bStatus.SwitchP1Action();
+				TriggerCheck(trigger);
+				bStatus.SwitchP2Action();
+			}
+
+		}
 		
 		private void ActionEffect(EffectTiming timing) {
 			bStatus.effectTiming = timing;
-			foreach (CmSkill action in bStatus.a.chr.actionSlots) {
+			for (int i = 0; i < bStatus.a.chr.actionSlots.Count; i++) {
+				CmSkill action = bStatus.a.chr.actionSlots[i];
 				if (action == null) {
 					continue;
 				}
@@ -206,24 +319,24 @@ namespace Zook {
 				foreach (CmEffect effect in action.Effects) {
 					if (timing == effect.timing && !action.broken) {
 						bei.ExecuteEffects(bStatus, effect.formula);
-						action.used = true;
 					}
 				}
 			}
-			foreach (CmSkill stock in bStatus.a.chr.stockSlots) {
+			for (int i = 0; i < bStatus.a.chr.stockSlots.Count; i++) {
+				CmSkill stock = bStatus.a.chr.stockSlots[i];
 				if (stock == null) {
 					continue;
 				}
 				bStatus.effectSourceType = EffectSourceType.Skill;
 				bStatus.effectSourceName = stock.Name;
 				foreach (CmEffect effect in stock.Effects) {
-					if (timing == effect.timing && !stock.broken) {
+					if (timing == effect.timing && !stock.broken && stock.used) {
 						bei.ExecuteEffects(bStatus, effect.formula);
-						stock.used = true;
 					}
 				}
 			}
-			foreach (CmObject obj in bStatus.a.objs) {
+			for (int i = 0; i < bStatus.a.objs.Count; i++) {
+				CmObject obj = bStatus.a.objs[i];
 				bStatus.effectSourceType = EffectSourceType.Object;
 				bStatus.effectSourceName = obj.Name;
 				foreach (CmEffect effect in obj.Effects) {
@@ -232,7 +345,8 @@ namespace Zook {
 					}
 				}
 			}
-			foreach (CmStatus status in bStatus.a.chr.status) {
+			for (int i = 0; i < bStatus.a.chr.status.Count; i++) {
+				CmStatus status = bStatus.a.chr.status[i];
 				bStatus.effectSourceType = EffectSourceType.Status;
 				bStatus.effectSourceName = status.Name;
 				foreach (CmEffect effect in status.Effects) {
@@ -290,7 +404,8 @@ namespace Zook {
 
 		private void ManaEffect(EffectTiming timing) {
 			bStatus.effectTiming = timing;
-			foreach (CmSkill action in bStatus.a.chr.actionSlots) {
+			for (int i = 0; i < bStatus.a.chr.actionSlots.Count; i++) {
+				CmSkill action = bStatus.a.chr.actionSlots[i];
 				if (action == null) {
 					continue;
 				}
@@ -302,19 +417,21 @@ namespace Zook {
 					}
 				}
 			}
-			foreach (CmSkill stock in bStatus.a.chr.stockSlots) {
+			for (int i = 0; i < bStatus.a.chr.stockSlots.Count; i++) {
+				CmSkill stock = bStatus.a.chr.stockSlots[i];
 				if (stock == null) {
 					continue;
 				}
 				bStatus.effectSourceType = EffectSourceType.Skill;
 				bStatus.effectSourceName = stock.Name;
 				foreach (CmEffect effect in stock.Effects) {
-					if (timing == effect.timing) {
+					if (timing == effect.timing && stock.broken) {
 						bei.ExecuteEffects(bStatus, effect.formula);
 					}
 				}
 			}
-			foreach (CmObject obj in bStatus.a.objs) {
+			for (int i = 0; i < bStatus.a.objs.Count; i++) {
+				CmObject obj = bStatus.a.objs[i];
 				bStatus.effectSourceType = EffectSourceType.Object;
 				bStatus.effectSourceName = obj.Name;
 				foreach (CmEffect effect in obj.Effects) {
@@ -323,7 +440,8 @@ namespace Zook {
 					}
 				}
 			}
-			foreach (CmStatus status in bStatus.a.chr.status) {
+			for (int i = 0; i < bStatus.a.chr.status.Count; i++) {
+				CmStatus status = bStatus.a.chr.status[i];
 				bStatus.effectSourceType = EffectSourceType.Status;
 				bStatus.effectSourceName = status.Name;
 				foreach (CmEffect effect in status.Effects) {

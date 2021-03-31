@@ -89,7 +89,7 @@ namespace Zook {
 				}
 			}
 			for (int i = 0; i < this.actionSlots.Count; i++) {
-				if (this.actionSlots[i] != null && this.actionSlots[i].broken) {
+				if (this.actionSlots[i] != null) {
 					this.exhaustZone.Add(this.actionSlots[i]);
 					this.actionSlots[i] = null;
 				}
@@ -99,6 +99,10 @@ namespace Zook {
 					this.exhaustZone.Add(this.stockSlots[i]);
 					this.stockSlots[i] = null;
 				}
+			}
+			for (int i = this.exhaustZone.Count-1; i >= 0; i--) {
+				this.exhaustZone[i].used = false;
+				this.exhaustZone[i].broken = false;
 			}
 			for (int i = this.status.Count-1; i >= 0; i--) {
 				if (this.status[i].removed) {

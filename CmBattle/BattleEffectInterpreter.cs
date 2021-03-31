@@ -49,8 +49,10 @@ namespace Zook {
 			string leftItem;
 			string rightItem;
 			AssignmentOperator ao;
-			if (Separate(effectFormula, out leftItem, out rightItem, out ao)) {
-				InterpretLeftItem(bStatus, leftItem, rightItem, ao);
+			if (bsc.SepatateCondition(bStatus, ref effectFormula)) {
+				if (Separate(effectFormula, out leftItem, out rightItem, out ao)) {
+					InterpretLeftItem(bStatus, leftItem, rightItem, ao);
+				}
 			}
 		}
 		
@@ -84,6 +86,9 @@ namespace Zook {
 		
 		private void InterpretLeftItem(CmBattleStatus bStatus, string leftItem, string rightItem, AssignmentOperator ao) {
 			BsConvert leftStatus = bsc.GetBsConvertType(bStatus, leftItem);
+			if (leftStatus == null) {
+				Console.WriteLine("無効なデータが検出されました");
+			}
 			switch (leftStatus.valueType) {
 			case BsValueType.None:
 				break;
@@ -94,6 +99,7 @@ namespace Zook {
 				DistortChange(bStatus, leftStatus, rightItem, ao);
 				break;
 			case BsValueType.Round:
+				RoundChange(bStatus, leftStatus, rightItem, ao);
 				break;
 			case BsValueType.CharacterMhp:
 				CharacterMhpChange(bStatus, leftStatus, rightItem, ao);
@@ -138,7 +144,7 @@ namespace Zook {
 			case BsValueType.CharacterStockSlot:
 				CharacterStockSlotChange(bStatus, leftStatus, rightItem, ao);
 				break;
-			case BsValueType.CharacterExaustZone:
+			case BsValueType.CharacterExhaustZone:
 				CharacterExhaustZoneChange(bStatus, leftStatus, rightItem, ao);
 				break;
 			case BsValueType.CharacterStatusAll:
@@ -162,7 +168,7 @@ namespace Zook {
 					CharacterActionSlotChange(bStatus, leftStatus, rightItem, ao);
 				} else if (leftStatus.skillLayer == BsSkillLayer.StockSlot) {
 					CharacterStockSlotChange(bStatus, leftStatus, rightItem, ao);
-				} else if (leftStatus.skillLayer == BsSkillLayer.ExaustZone) {
+				} else if (leftStatus.skillLayer == BsSkillLayer.ExhaustZone) {
 					CharacterExhaustZoneChange(bStatus, leftStatus, rightItem, ao);
 				}
 				break;
@@ -171,6 +177,27 @@ namespace Zook {
 			case BsValueType.SkillType:
 				break;
 			case BsValueType.SkillSymbols:
+				break;
+			case BsValueType.SkillVoid:
+				if (leftStatus.skillLayer == BsSkillLayer.SkillList) {
+				} else if (leftStatus.skillLayer == BsSkillLayer.ActionSlot) {
+					CharacterVoidActionChange(bStatus, leftStatus, rightItem, ao);
+				} else if (leftStatus.skillLayer == BsSkillLayer.StockSlot) {
+					CharacterVoidStockChange(bStatus, leftStatus, rightItem, ao);
+				} else if (leftStatus.skillLayer == BsSkillLayer.ExhaustZone) {
+				}
+				break;
+			case BsValueType.SkillNonvoid:
+				if (leftStatus.skillLayer == BsSkillLayer.SkillList) {
+				} else if (leftStatus.skillLayer == BsSkillLayer.ActionSlot) {
+					CharacterNonvoidActionChange(bStatus, leftStatus, rightItem, ao);
+				} else if (leftStatus.skillLayer == BsSkillLayer.StockSlot) {
+					CharacterNonvoidStockChange(bStatus, leftStatus, rightItem, ao);
+				} else if (leftStatus.skillLayer == BsSkillLayer.ExhaustZone) {
+				}
+				break;
+			case BsValueType.TriggerSkill:
+				TriggerSkillChange(bStatus, leftStatus, rightItem, ao);
 				break;
 			case BsValueType.CharacterMana:
 				ManaChange(bStatus, leftStatus, rightItem, ao);
@@ -186,10 +213,10 @@ namespace Zook {
 			case AssignmentOperator.Assignment:
 				//代入
 				for (int i = 0; i < targets.Count; i++) {
-					Console.WriteLine(rightItem);
+					//Console.WriteLine(rightItem);
 					int rightStatus = bsc.Calculate(bStatus, rightItem);
 					targets[i].AddDefinition(leftStatus.targetInstance, rightStatus);
-					Console.WriteLine(leftStatus.targetInstance + "=" + rightStatus.ToString());
+					//Console.WriteLine(leftStatus.targetInstance + "=" + rightStatus.ToString());
 				}
 				break;
 			case AssignmentOperator.AssignmentPlus:
@@ -317,14 +344,25 @@ namespace Zook {
 					} else if (targets[i].statusGuard == true && bStatus.effectSourceType == EffectSourceType.Status) {
 						bl.Log(String.Format("{0}[{1}]: {2}は攻撃を無効化した！",
 							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name));
-					} else {
+					} else if (bStatus.effectTiming == EffectTiming.Attack || bStatus.effectTiming == EffectTiming.Heal) {
 						int beforeValue = targets[i].hp;
-						int damage = Math.Max(rightStatus - targets[i].guard, 0);
+						int damage;
+						if (bStatus.a.HasDistortion("attack", "nonguard")) {
+							damage = Math.Max(rightStatus, 0);
+						} else {
+							damage = Math.Max(rightStatus - targets[i].guard, 0);
+						}
 						targets[i].hp -= damage;
 						bStatus.a.chr.dealdmg += damage;
 						targets[i].dealtdmg += damage;
 						bl.Log(String.Format("{0}[{1}]: {2}に{3}のダメージ({4}→{5})",
 							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, damage, beforeValue, targets[i].hp));
+					} else {
+						int beforeValue = targets[i].hp;
+						targets[i].hp -= rightStatus;
+						bl.Log(String.Format("{0}[{1}]: {2}のHPが{3}減少した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus, beforeValue, targets[i].hp));
+						Console.WriteLine(rightItem + " " + rightStatus);
 					}
 				}
 				break;
@@ -589,6 +627,8 @@ namespace Zook {
 						if (targets[i].actionSlots[j] != null &&
 						targets[i].actionSlots[j].broken == false) {
 							targets[i].actionSlots[j].broken = true;
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が破壊された",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].actionSlots[j].Name));
 							break;
 						}
 					}
@@ -602,16 +642,20 @@ namespace Zook {
 				case AssignmentOperator.AssignmentPlus:
 					//枠追加
 					for(int i = 0; i < targets.Count; i++) {
+						int beforeValue = targets[i].actionSlots.Count;
 						int j = 0;
 						while (j < rightStatus) {
 							targets[i].actionSlots.Add(null);
 							j++;
 						}
+						bl.Log(String.Format("{0}[{1}]: {2}のアクション枠が増加した({3}→{4})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, beforeValue, targets[i].actionSlots.Count));
 					}
 					break;
 				case AssignmentOperator.AssignmentMinus:
 					//枠減少
 					for(int i = 0; i < targets.Count; i++) {
+						int beforeValue = targets[i].actionSlots.Count;
 						int j = 0;
 						while (j < rightStatus) {
 							if (targets[i].actionSlots.Count > 1) {
@@ -621,6 +665,8 @@ namespace Zook {
 							}
 							j++;
 						}
+						bl.Log(String.Format("{0}[{1}]: {2}のアクション枠が減少した({3}→{4})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, beforeValue, targets[i].actionSlots.Count));
 					}
 					break;
 				default:
@@ -739,6 +785,74 @@ namespace Zook {
 			}
 		}
 		
+		private void CharacterVoidActionChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
+			if (rightItem.Equals("break") && ao == AssignmentOperator.Assignment) {
+				for(int i = 0; i < targets.Count; i++) {
+					for(int j = 0; j < targets[i].actionSlots.Count; j++) {
+						if (targets[i].actionSlots[j].IsVoid()) {
+							targets[i].actionSlots[j].broken = true;
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が破壊された",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].actionSlots[j].Name));
+						}
+					}
+				}
+			}
+		}
+		
+		private void CharacterVoidStockChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
+			if (rightItem.Equals("break") && ao == AssignmentOperator.Assignment) {
+				for(int i = 0; i < targets.Count; i++) {
+					for(int j = 0; j < targets[i].stockSlots.Count; j++) {
+						if (targets[i].stockSlots[j].IsVoid()) {
+							targets[i].stockSlots[j].broken = true;
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が破壊された",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].stockSlots[j].Name));
+						}
+					}
+				}
+			}
+		}
+
+		private void CharacterNonvoidActionChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
+			if (rightItem.Equals("break") && ao == AssignmentOperator.Assignment) {
+				for(int i = 0; i < targets.Count; i++) {
+					for(int j = 0; j < targets[i].actionSlots.Count; j++) {
+						if (!targets[i].actionSlots[j].IsVoid()) {
+							targets[i].actionSlots[j].broken = true;
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が破壊された",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].actionSlots[j].Name));
+						}
+					}
+				}
+			}
+		}
+
+		private void CharacterNonvoidStockChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
+			if (rightItem.Equals("break") && ao == AssignmentOperator.Assignment) {
+				for(int i = 0; i < targets.Count; i++) {
+					for(int j = 0; j < targets[i].stockSlots.Count; j++) {
+						if (!targets[i].stockSlots[j].IsVoid()) {
+							targets[i].stockSlots[j].broken = true;
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が破壊された",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].stockSlots[j].Name));
+						}
+					}
+				}
+			}
+		}
+
+		private void TriggerSkillChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			if (rightItem.Equals("break") && ao == AssignmentOperator.Assignment) {
+				bStatus.triggerSkill.broken = true;
+				bl.Log(String.Format("{0}[{1}]: {2}が破壊された",
+					bStatus.a.chr.Name, bStatus.effectSourceName, bStatus.triggerSkill.Name));
+			}
+		}
+
 		private void StatusCountChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
 			int rightStatus = bsc.Calculate(bStatus, rightItem);
 			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
@@ -751,10 +865,13 @@ namespace Zook {
 				//回復
 				for(int i = 0; i < targets.Count; i++) {
 					for (int j = 0; j < targets[i].status.Count; j++) {
+						int beforeValue = targets[i].status[j].count;
 						targets[i].status[j].count -= rightStatus;
 						if (targets[i].status[j].count <= 0) {
 							targets[i].status[j].removed = true;
 						}
+						bl.Log(String.Format("{0}[{1}]: {2}の{3}が{4}回復した({5}→{6})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].status[j].Name, rightStatus, beforeValue, targets[i].status[j].count));
 					}
 				}
 				break;
@@ -773,15 +890,21 @@ namespace Zook {
 					bool find = false;
 					for (int j = 0; j < targets[i].status.Count; j++) {
 						if (leftStatus.targetInstance.Equals(targets[i].status[j].Name)) {
+							int beforeValue = targets[i].status[j].count;
 							targets[i].status[j].count = rightStatus;
+							bl.Log(String.Format("{0}[{1}]: {2}に{3}を{4}にした({5}→{6})",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].status[j].Name, rightStatus, beforeValue, targets[i].status[j].count));
 							find = true;
 							break;
 						}
 					}
-					if (!find) {
+					if (!find && rightStatus != 0) {
 						CmStatus status = statusList.GetStatus(leftStatus.targetInstance);
+						int beforeValue = status.count;
 						status.count = rightStatus;
 						targets[i].status.Add(status);
+						bl.Log(String.Format("{0}[{1}]: {2}に{3}を{4}付与した({5}→{6})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, status.Name, rightStatus, beforeValue, status.count));
 					}
 				}
 				break;
@@ -791,15 +914,21 @@ namespace Zook {
 					bool find = false;
 					for (int j = 0; j < targets[i].status.Count; j++) {
 						if (leftStatus.targetInstance.Equals(targets[i].status[j].Name)) {
+							int beforeValue = targets[i].status[j].count;
 							targets[i].status[j].count += rightStatus;
+							bl.Log(String.Format("{0}[{1}]: {2}に{3}を{4}付与した({5}→{6})",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].status[j].Name, rightStatus, beforeValue, targets[i].status[j].count));
 							find = true;
 							break;
 						}
 					}
-					if (!find) {
+					if (!find && rightStatus != 0) {
 						CmStatus status = statusList.GetStatus(leftStatus.targetInstance);
+						int beforeValue = status.count;
 						status.count = rightStatus;
 						targets[i].status.Add(status);
+						bl.Log(String.Format("{0}[{1}]: {2}に{3}を{4}付与した({5}→{6})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, status.Name, rightStatus, beforeValue, status.count));
 					}
 				}
 				break;
@@ -808,10 +937,13 @@ namespace Zook {
 				for(int i = 0; i < targets.Count; i++) {
 					for (int j = 0; j < targets[i].status.Count; j++) {
 						if (leftStatus.targetInstance.Equals(targets[i].status[j].Name)) {
+							int beforeValue = targets[i].status[j].count;
 							targets[i].status[j].count -= rightStatus;
 							if (targets[i].status[j].count <= 0) {
 								targets[i].status[j].removed = true;
 							}
+							bl.Log(String.Format("{0}[{1}]: {2}の{3}が{4}回復した({5}→{6})",
+								bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, targets[i].status[j].Name, rightStatus, beforeValue, targets[i].status[j].count));
 							break;
 						}
 					}
@@ -948,7 +1080,6 @@ namespace Zook {
 		
 		private void ManaChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
 			CmMana rightStatus = bsc.ManaCalculate(bStatus, rightItem);
-			int level = bsc.Calculate(bStatus, leftStatus.level);
 			List<CmCharacter> targets = bsc.GetTargetCharacters(bStatus, leftStatus.targetType);
 			switch (ao) {
 			case AssignmentOperator.Assignment:
@@ -956,24 +1087,108 @@ namespace Zook {
 			case AssignmentOperator.AssignmentPlus:
 				//マナ追加
 				for(int i = 0; i < targets.Count; i++) {
+					int beforeValue = targets[i].mana.f;
 					targets[i].mana.f += rightStatus.f;
+					if (rightStatus.f != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の火マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.f, beforeValue, targets[i].mana.f));
+					}
+					beforeValue = targets[i].mana.w;
 					targets[i].mana.w += rightStatus.w;
+					if (rightStatus.w != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の水マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.w, beforeValue, targets[i].mana.w));
+					}
+					beforeValue = targets[i].mana.a;
 					targets[i].mana.a += rightStatus.a;
+					if (rightStatus.a != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の風マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.a, beforeValue, targets[i].mana.a));
+					}
+					beforeValue = targets[i].mana.s;
 					targets[i].mana.s += rightStatus.s;
+					if (rightStatus.s != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の地マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.s, beforeValue, targets[i].mana.s));
+					}
+					beforeValue = targets[i].mana.l;
 					targets[i].mana.l += rightStatus.l;
+					if (rightStatus.l != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の光マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.l, beforeValue, targets[i].mana.l));
+					}
+					beforeValue = targets[i].mana.d;
 					targets[i].mana.d += rightStatus.d;
+					if (rightStatus.d != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の闇マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.d, beforeValue, targets[i].mana.d));
+					}
 				}
 				break;
 			case AssignmentOperator.AssignmentMinus:
 				//マナ減少
 				for(int i = 0; i < targets.Count; i++) {
+					int beforeValue = targets[i].mana.f;
 					targets[i].mana.f -= rightStatus.f;
+					if (rightStatus.f != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の火マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.f, beforeValue, targets[i].mana.f));
+					}
+					beforeValue = targets[i].mana.w;
 					targets[i].mana.w -= rightStatus.w;
+					if (rightStatus.w != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の水マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.w, beforeValue, targets[i].mana.w));
+					}
+					beforeValue = targets[i].mana.a;
 					targets[i].mana.a -= rightStatus.a;
+					if (rightStatus.a != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の風マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.a, beforeValue, targets[i].mana.a));
+					}
+					beforeValue = targets[i].mana.s;
 					targets[i].mana.s -= rightStatus.s;
+					if (rightStatus.s != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の地マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.s, beforeValue, targets[i].mana.s));
+					}
+					beforeValue = targets[i].mana.l;
 					targets[i].mana.l -= rightStatus.l;
+					if (rightStatus.l != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の光マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.l, beforeValue, targets[i].mana.l));
+					}
+					beforeValue = targets[i].mana.d;
 					targets[i].mana.d -= rightStatus.d;
+					if (rightStatus.d != 0) {
+						bl.Log(String.Format("{0}[{1}]: {2}の闇マナが{3}増加した({4}→{5})",
+							bStatus.a.chr.Name, bStatus.effectSourceName, targets[i].Name, rightStatus.d, beforeValue, targets[i].mana.d));
+					}
 				}
+				break;
+			default:
+				break;
+			}
+		}
+
+		private void RoundChange(CmBattleStatus bStatus, BsConvert leftStatus, string rightItem, AssignmentOperator ao) {
+			int rightStatus = bsc.Calculate(bStatus, rightItem);
+			int beforeValue = bStatus.round;
+			switch (ao) {
+			case AssignmentOperator.Assignment:
+				bStatus.round = rightStatus;
+				bl.Log(String.Format("{0}[{1}]: ラウンドが{2}になった({3}→{4})",
+					bStatus.a.chr.Name, bStatus.effectSourceName, rightStatus, beforeValue, bStatus.round));
+				break;
+			case AssignmentOperator.AssignmentPlus:
+				bStatus.round += rightStatus;
+				bl.Log(String.Format("{0}[{1}]: ラウンドが{2}進んだ({3}→{4})",
+					bStatus.a.chr.Name, bStatus.effectSourceName, rightStatus, beforeValue, bStatus.round));
+				break;
+			case AssignmentOperator.AssignmentMinus:
+				bStatus.round -= rightStatus;
+				bl.Log(String.Format("{0}[{1}]: ラウンドが{2}戻った({3}→{4})",
+					bStatus.a.chr.Name, bStatus.effectSourceName, rightStatus, beforeValue, bStatus.round));
 				break;
 			default:
 				break;

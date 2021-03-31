@@ -39,8 +39,7 @@ namespace Zook {
 		public string effectSourceName;
 		public EffectTiming effectTiming;
 
-		public CmPartyStatus targetParty;
-		public CmCharacter targetCharacter;
+		public CmSkill triggerSkill;
 
 		public void SwitchP1Action() {
 			a = p1;

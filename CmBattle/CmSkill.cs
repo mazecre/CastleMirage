@@ -32,6 +32,19 @@ namespace Zook {
 			copy.broken = this.broken;
 			return copy;
 		}
+
+		public bool IsVoid() {
+			return baseSkill.symbols.Contains("v");
+		}
+
+		public bool IsAttack() {
+			foreach (CmEffect effect in Effects) {
+				if (effect.timing == EffectTiming.Attack) {
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 
 	public class CmSkillBase {
